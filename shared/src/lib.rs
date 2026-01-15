@@ -1,0 +1,78 @@
+use soroban_sdk::{contracttype, Address, String, Vec};
+
+/// Represents an agent's metadata and state
+#[derive(Clone)]
+#[contracttype]
+pub struct Agent {
+    pub id: u64,
+    pub owner: Address,
+    pub name: String,
+    pub model_hash: String,
+    pub capabilities: Vec<String>,
+    pub evolution_level: u32,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+/// Represents a marketplace listing
+#[derive(Clone)]
+#[contracttype]
+pub struct Listing {
+    pub listing_id: u64,
+    pub agent_id: u64,
+    pub seller: Address,
+    pub price: i128,
+    pub listing_type: ListingType, // Sale, Lease, etc.
+    pub active: bool,
+    pub created_at: u64,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[contracttype]
+#[repr(u32)]
+pub enum ListingType {
+    Sale = 0,
+    Lease = 1,
+    Auction = 2,
+}
+
+/// Represents an evolution/upgrade request
+#[derive(Clone)]
+#[contracttype]
+pub struct EvolutionRequest {
+    pub request_id: u64,
+    pub agent_id: u64,
+    pub owner: Address,
+    pub stake_amount: i128,
+    pub status: EvolutionStatus,
+    pub created_at: u64,
+    pub completed_at: Option<u64>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+#[contracttype]
+#[repr(u32)]
+pub enum EvolutionStatus {
+    Pending = 0,
+    InProgress = 1,
+    Completed = 2,
+    Failed = 3,
+}
+
+/// Oracle data entry
+#[derive(Clone)]
+#[contracttype]
+pub struct OracleData {
+    pub key: String,
+    pub value: String,
+    pub timestamp: u64,
+    pub source: String,
+}
+
+/// Royalty information for marketplace transactions
+#[derive(Clone)]
+#[contracttype]
+pub struct RoyaltyInfo {
+    pub recipient: Address,
+    pub percentage: u32, // 0-10000 representing 0-100%
+}

@@ -1,0 +1,24 @@
+[workspace]
+members = [
+    "contracts/agent-nft",
+    "contracts/execution-hub",
+    "contracts/marketplace",
+    "contracts/evolution",
+    "contracts/oracle",
+    "contracts/faucet",
+    "shared",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[profile.release]
+opt-level = "z"
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug = true
