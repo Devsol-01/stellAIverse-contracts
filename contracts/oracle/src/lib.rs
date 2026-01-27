@@ -1,11 +1,23 @@
 #![no_std]
+extern crate alloc;
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol, Vec};
+pub mod testutils;
+
+#[cfg(test)]
+mod tests;
+
+use soroban_sdk::{contract, contractimpl, Address, Symbol, Vec,Env};
+use alloc::format;
+// use soroban_sdk::{Env, String};
+use soroban_sdk::{Bytes, String};
 
 const ADMIN_KEY: &str = "admin";
 const PROVIDER_LIST_KEY: &str = "providers";
 const DATA_KEY_PREFIX: &str = "data_";
 const DATA_HISTORY_PREFIX: &str = "history_";
+const DATA_KEY: &str = "data";
+const HISTORY_KEY: &str = "history";
+
 
 #[contract]
 pub struct Oracle;
@@ -46,12 +58,12 @@ impl Oracle {
         let mut providers: Vec<Address> = env.storage()
             .instance()
             .get(&provider_list_key)
-            .unwrap_or_else(|_| Vec::new(&env));
+            .unwrap_or_else(|| Vec::new(&env));
 
         // Prevent duplicate providers
         for i in 0..providers.len() {
             if let Some(p) = providers.get(i) {
-                if p == &provider {
+                if p == provider {
                     panic!("Provider already registered");
                 }
             }
@@ -74,11 +86,11 @@ impl Oracle {
         let providers: Vec<Address> = env.storage()
             .instance()
             .get(&provider_list_key)
-            .unwrap_or_else(|_| Vec::new(env));
+            .unwrap_or_else(|| Vec::new(env));
 
         for i in 0..providers.len() {
             if let Some(p) = providers.get(i) {
-                if p == provider {
+                if p == *provider {
                     return true;
                 }
             }
@@ -97,13 +109,13 @@ impl Oracle {
         provider.require_auth();
 
         // Input validation
-        if key.len() > shared::MAX_STRING_LENGTH {
+        if key.len() > shared::MAX_STRING_LENGTH as u32 {
             panic!("Data key exceeds maximum length");
         }
-        if value.len() > shared::MAX_STRING_LENGTH {
+        if value.len() > shared::MAX_STRING_LENGTH as u32 {
             panic!("Data value exceeds maximum length");
         }
-        if source.len() > shared::MAX_STRING_LENGTH {
+        if source.len() > shared::MAX_STRING_LENGTH as u32 {
             panic!("Source exceeds maximum length");
         }
 
@@ -112,8 +124,10 @@ impl Oracle {
             panic!("Unauthorized: provider not registered");
         }
 
-        // Store current data (for freshness checking)
-        let data_key = String::from_slice(&env, &format!("{}{}", DATA_KEY_PREFIX, key).as_bytes());
+     
+ 
+        // let data_key_bytes: Bytes = Bytes::from_slice(&env, DATA_KEY_PREFIX.as_bytes()).concat(Bytes::from_slice(&env, key.as_bytes()));
+        // let data_key = String::from_slice(&env, &data_key_bytes);
         let timestamp = env.ledger().timestamp();
 
         let oracle_data = shared::OracleData {
@@ -124,38 +138,57 @@ impl Oracle {
         };
 
         // Store latest data
-        env.storage().instance().set(&data_key, &oracle_data);
+        // env.storage().instance().set(&data_key, &oracle_data);
+        env.storage() .instance() .set(&(Symbol::new(&env, "data"), key.clone()), &oracle_data);
+
 
         // Store in history (with size limit to prevent DoS)
-        let history_key = String::from_slice(&env, &format!("{}{}", DATA_HISTORY_PREFIX, key).as_bytes());
-        let mut history: Vec<shared::OracleData> = env.storage()
-            .instance()
-            .get(&history_key)
-            .unwrap_or_else(|_| Vec::new(&env));
+        // let history_key = String::from_str(&env, &format!("{}{}", DATA_HISTORY_PREFIX, key));
+        // let mut history: Vec<shared::OracleData> = env.storage()
+        //     .instance()
+        //     .get(&history_key)
+        //     .unwrap_or_else(|| Vec::new(&env));
 
-        if history.len() >= 1000 {
-            // Remove oldest entry if history is full
-            // In production, use a circular buffer or more efficient data structure
-            panic!("History limit reached for this data key");
-        }
+        // if history.len() >= 1000 {
+        //     // Remove oldest entry if history is full
+        //     // In production, use a circular buffer or more efficient data structure
+        //     panic!("History limit reached for this data key");
+        // }
 
-        history.push_back(oracle_data);
-        env.storage().instance().set(&history_key, &history);
+        // history.push_back(oracle_data);
+        // env.storage().instance().set(&history_key, &history);
 
-        env.events().publish(
-            (Symbol::new(&env, "data_submitted"),),
-            (key, timestamp, provider)
-        );
+        // env.events().publish(
+        //     (Symbol::new(&env, "data_submitted"),),
+        //     (key, timestamp, provider)
+        // );
+
+        // Store in history (with size limit to prevent DoS)
+    let mut history: Vec<shared::OracleData> = env.storage() .instance() .get(&(Symbol::new(&env, "history"), key.clone())) .unwrap_or_else(|| Vec::new(&env));
+
+    if history.len() >= 1000 {
+       panic!("History limit reached for this data key");
+    }
+
+    history.push_back(oracle_data);
+
+     env.storage()
+    .instance()
+    .set(&(Symbol::new(&env, "history"), key.clone()), &history);
+
     }
 
     /// Get latest oracle data with freshness validation
     pub fn get_data(env: Env, key: String) -> Option<shared::OracleData> {
-        if key.len() > shared::MAX_STRING_LENGTH {
+        if key.len() > shared::MAX_STRING_LENGTH as u32 {
             panic!("Data key exceeds maximum length");
         }
 
-        let data_key = String::from_slice(&env, &format!("{}{}", DATA_KEY_PREFIX, key).as_bytes());
-        env.storage().instance().get(&data_key)
+        // let data_key = String::from_str(&env, &format!("{}{}", DATA_KEY_PREFIX, key));
+        // env.storage().instance().get(&data_key)
+
+        env.storage() .instance().get(&(Symbol::new(&env, "data"), key))
+
     }
 
     /// Get historical data with limit for DoS protection
@@ -164,29 +197,32 @@ impl Oracle {
         key: String,
         limit: u32,
     ) -> Vec<shared::OracleData> {
-        if key.len() > shared::MAX_STRING_LENGTH {
+        if key.len() > shared::MAX_STRING_LENGTH as u32 {
             panic!("Data key exceeds maximum length");
         }
         if limit > 500 {
             panic!("Limit exceeds maximum allowed (500)");
         }
 
-        let history_key = String::from_slice(&env, &format!("{}{}", DATA_HISTORY_PREFIX, key).as_bytes());
-        let history: Vec<shared::OracleData> = env.storage()
-            .instance()
-            .get(&history_key)
-            .unwrap_or_else(|_| Vec::new(&env));
+        // let history_key = String::from_str(&env, &format!("{}{}", DATA_HISTORY_PREFIX, key));
+        // let history: Vec<shared::OracleData> = env.storage()
+        //     .instance()
+        //     .get(&history_key)
+        //     .unwrap_or_else(|| Vec::new(&env));
+
+        let history: Vec<shared::OracleData> = env.storage() .instance() .get(&(Symbol::new(&env, "history"), key.clone())) .unwrap_or_else(|| Vec::new(&env));
+
 
         // Return limited results
         let mut result = Vec::new(&env);
-        let max_items = if (limit as usize) < history.len() { 
+        let max_items = if (limit as usize) < history.len() as usize { 
             limit as usize 
         } else { 
-            history.len() 
+            history.len() as usize
         };
 
         for i in 0..max_items {
-            if let Some(item) = history.get(history.len() - max_items + i) {
+            if let Some(item) = history.get((history.len() as usize - max_items + i) as u32) {
                 result.push_back(item);
             }
         }
@@ -196,15 +232,17 @@ impl Oracle {
 
     /// Verify data staleness and validity with bounds checking
     pub fn is_data_fresh(env: Env, key: String, max_age_seconds: u64) -> bool {
-        if key.len() > shared::MAX_STRING_LENGTH {
+        if key.len() > shared::MAX_STRING_LENGTH as u32 {
             panic!("Data key exceeds maximum length");
         }
         if max_age_seconds > shared::MAX_AGE_SECONDS {
             panic!("Max age exceeds reasonable limit");
         }
 
-        let data_key = String::from_slice(&env, &format!("{}{}", DATA_KEY_PREFIX, key).as_bytes());
-        match env.storage().instance().get::<_, shared::OracleData>(&data_key) {
+        // let data_key = String::from_str(&env, &format!("{}{}", DATA_KEY_PREFIX, key));
+        // match env.storage().instance().get::<_, shared::OracleData>(&data_key) {
+        match env.storage().instance().get::<_, shared::OracleData>(&(Symbol::new(&env, "data"), key)) {
+
             Some(data) => {
                 let age = env.ledger().timestamp()
                     .checked_sub(data.timestamp)
@@ -221,16 +259,16 @@ impl Oracle {
         Self::verify_admin(&env, &admin);
 
         let provider_list_key = Symbol::new(&env, PROVIDER_LIST_KEY);
-        let mut providers: Vec<Address> = env.storage()
+        let providers: Vec<Address> = env.storage()
             .instance()
             .get(&provider_list_key)
-            .unwrap_or_else(|_| Vec::new(&env));
+            .unwrap_or_else(|| Vec::new(&env));
 
         // Find and remove provider
         let mut found = false;
         for i in 0..providers.len() {
             if let Some(p) = providers.get(i) {
-                if p == &provider {
+                if p == provider {
                     // Remove by creating new vector without this provider
                     let mut new_providers = Vec::new(&env);
                     for j in 0..providers.len() {

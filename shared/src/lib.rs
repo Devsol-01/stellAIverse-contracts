@@ -115,3 +115,38 @@ pub const MAX_AGE_SECONDS: u64 = 365 * 24 * 60 * 60; // ~1 year max data age
 pub const ATTESTATION_SIGNATURE_SIZE: usize = 64; // Ed25519 signature size
 pub const MAX_ATTESTATION_DATA_SIZE: usize = 1024; // Max size for attestation data
 
+
+#[cfg(any(test, feature = "testutils"))]
+pub mod testutils {
+    use super::*;
+    use soroban_sdk::{Env, String, Vec, Bytes, Address};
+
+    pub fn create_oracle_data(env: &Env, key: &str, value: &str, source: &str) -> OracleData {
+        OracleData {
+            key: String::from_str(env, key),
+            value: String::from_str(env, value),
+            timestamp: env.ledger().timestamp(),
+            source: String::from_str(env, source),
+        }
+    }
+
+    pub fn create_evolution_attestation(
+        env: &Env,
+        request_id: u64,
+        agent_id: u64,
+        oracle_provider: Address,
+        new_model_hash: &str,
+        nonce: u64,
+    ) -> EvolutionAttestation {
+        EvolutionAttestation {
+            request_id,
+            agent_id,
+            oracle_provider,
+            new_model_hash: String::from_str(env, new_model_hash),
+            attestation_data: Bytes::from_slice(env, b"mock_attestation_data"),
+            signature: Bytes::from_slice(env, &[0u8; 64]),
+            timestamp: env.ledger().timestamp(),
+            nonce,
+        }
+    }
+}

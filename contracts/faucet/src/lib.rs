@@ -1,12 +1,16 @@
 #![no_std]
+extern crate alloc;
 
-use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol, Map};
+
+// use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol, Map};
+use soroban_sdk::{contract, contractimpl, Address, Env, Symbol};
+
 
 const ADMIN_KEY: &str = "admin";
 const CLAIM_COOLDOWN_KEY: &str = "claim_cooldown";
 const MAX_CLAIMS_PER_PERIOD_KEY: &str = "max_claims_per_period";
-const LAST_CLAIM_KEY_PREFIX: &str = "last_claim_";
-const CLAIM_COUNT_KEY_PREFIX: &str = "claim_count_";
+// const LAST_CLAIM_KEY_PREFIX: &str = "last_claim_";
+// const CLAIM_COUNT_KEY_PREFIX: &str = "claim_count_";
 const TESTNET_FLAG_KEY: &str = "testnet_mode";
 
 // Default parameters
@@ -65,9 +69,13 @@ impl Faucet {
         }
 
         // Check eligibility
-        if !Self::check_eligibility(&env, &claimer) {
+        // if !Self::check_eligibility(&env, &claimer) {
+        //     panic!("Address is not eligible for faucet claim at this time");
+        // }
+        if !Self::check_eligibility(env.clone(), claimer.clone()) {
             panic!("Address is not eligible for faucet claim at this time");
         }
+
 
         // In production: Call agent-nft contract to mint test agent
         // For now, returning placeholder ID
@@ -75,15 +83,19 @@ impl Faucet {
 
         // Update rate limiting state
         let now = env.ledger().timestamp();
-        let last_claim_key = String::from_slice(&env, 
-            &format!("{}{}", LAST_CLAIM_KEY_PREFIX, claimer).as_bytes()
-        );
-        let claim_count_key = String::from_slice(&env,
-            &format!("{}{}", CLAIM_COUNT_KEY_PREFIX, claimer).as_bytes()
-        );
+        // let last_claim_key = String::from_slice(&env, 
+        //     &format!("{}{}", LAST_CLAIM_KEY_PREFIX, claimer).as_bytes()
+        // );
+        // let claim_count_key = String::from_slice(&env,
+        //     &format!("{}{}", CLAIM_COUNT_KEY_PREFIX, claimer).as_bytes()
+        // );
 
-        env.storage().instance().set(&last_claim_key, &now);
-        env.storage().instance().set(&claim_count_key, &1u32);
+        // env.storage().instance().set(&last_claim_key, &now);
+        // env.storage().instance().set(&claim_count_key, &1u32);
+        env.storage() .instance() .set(&(Symbol::new(&env, "last_claim"), claimer.clone()), &now);
+
+        env.storage() .instance() .set(&(Symbol::new(&env, "claim_count"), claimer.clone()), &1u32);
+
 
         env.events().publish(
             (Symbol::new(&env, "agent_claimed"),),
@@ -105,10 +117,13 @@ impl Faucet {
             .get(&Symbol::new(&env, MAX_CLAIMS_PER_PERIOD_KEY))
             .unwrap_or(DEFAULT_MAX_CLAIMS);
 
-        let last_claim_key = String::from_slice(&env,
-            &format!("{}{}", LAST_CLAIM_KEY_PREFIX, address).as_bytes()
-        );
-        let last_claim: Option<u64> = env.storage().instance().get(&last_claim_key);
+        // let last_claim_key = String::from_slice(&env,
+        //     &format!("{}{}", LAST_CLAIM_KEY_PREFIX, address).as_bytes()
+        // );
+        // let last_claim: Option<u64> = env.storage().instance().get(&last_claim_key);
+
+        let last_claim: Option<u64> = env.storage() .instance() .get(&(Symbol::new(&env, "last_claim"), address.clone()));
+
 
         match last_claim {
             Some(timestamp) => {
@@ -121,13 +136,16 @@ impl Faucet {
                 }
 
                 // Check claim count within current period
-                let claim_count_key = String::from_slice(&env,
-                    &format!("{}{}", CLAIM_COUNT_KEY_PREFIX, address).as_bytes()
-                );
-                let claims: u32 = env.storage()
-                    .instance()
-                    .get(&claim_count_key)
-                    .unwrap_or(0);
+                // let claim_count_key = String::from_slice(&env,
+                //     &format!("{}{}", CLAIM_COUNT_KEY_PREFIX, address).as_bytes()
+                // );
+                // let claims: u32 = env.storage()
+                //     .instance()
+                //     .get(&claim_count_key)
+                //     .unwrap_or(0);
+
+                let claims: u32 = env.storage().instance().get(&(Symbol::new(&env, "claim_count"), address.clone())) .unwrap_or(0);
+
 
                 claims < max_claims
             }
@@ -187,10 +205,13 @@ impl Faucet {
             .get(&Symbol::new(&env, CLAIM_COOLDOWN_KEY))
             .unwrap_or(DEFAULT_COOLDOWN_SECONDS);
 
-        let last_claim_key = String::from_slice(&env,
-            &format!("{}{}", LAST_CLAIM_KEY_PREFIX, address).as_bytes()
-        );
-        let last_claim: Option<u64> = env.storage().instance().get(&last_claim_key);
+        // let last_claim_key = String::from_slice(&env,
+        //     &format!("{}{}", LAST_CLAIM_KEY_PREFIX, address).as_bytes()
+        // );
+        // let last_claim: Option<u64> = env.storage().instance().get(&last_claim_key);
+
+        let last_claim: Option<u64> = env.storage().instance() .get(&(Symbol::new(&env, "last_claim"), address.clone()));
+
 
         match last_claim {
             Some(timestamp) => {

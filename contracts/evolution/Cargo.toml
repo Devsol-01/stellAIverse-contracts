@@ -4,11 +4,12 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-testutils = ["soroban-sdk/testutils"]
+testutils = ["soroban-sdk/testutils", "shared/testutils", "oracle/testutils"]
 
 [dependencies]
-soroban-sdk = { version = "20.5.0", features = ["alloc"] }
-shared = { path = "../../shared" }
+soroban-sdk = { version = "21.0.0", features = ["alloc"] }
+shared = { path = "../../shared", features = ["testutils"] }
+oracle = { path = "../oracle", features = ["testutils"] }
 
 [lib]
 crate-type = ["cdylib"]
