@@ -1,7 +1,7 @@
 #![no_std]
 
-mod testutils;
 mod tests;
+mod testutils;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec};
 use stellai_lib::OracleData;
