@@ -3,8 +3,8 @@
 // Step 2: Add the module import
 mod evolution_history;
 use evolution_history::{
-    append_evolution, get_evolution_count, get_evolution_history, 
-    get_latest_evolution, get_evolution_at_index, EvolutionRecord,
+    append_evolution, get_evolution_at_index, get_evolution_count, get_evolution_history,
+    get_latest_evolution, EvolutionRecord,
 };
 
 use soroban_sdk::{contract, contractimpl, Address, Env, Symbol, Vec}; // Added Vec
@@ -92,19 +92,22 @@ impl Evolution {
 
     /// Execute an evolution request (Admin only)
     /// This approves the request and records the history.
-    pub fn execute_evolution(
-        env: Env, 
-        request_id: u64, 
-        from_stage: u32, 
-        to_stage: u32
-    ) {
+    pub fn execute_evolution(env: Env, request_id: u64, from_stage: u32, to_stage: u32) {
         // 1. Verify Admin Auth
-        let admin: Address = env.storage().instance().get(&Symbol::new(&env, ADMIN_KEY)).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&Symbol::new(&env, ADMIN_KEY))
+            .unwrap();
         admin.require_auth();
 
         // 2. Get the request
         let request_key = (Symbol::new(&env, "request"), request_id);
-        let mut request: EvolutionRequest = env.storage().instance().get(&request_key).expect("Request not found");
+        let mut request: EvolutionRequest = env
+            .storage()
+            .instance()
+            .get(&request_key)
+            .expect("Request not found");
 
         // 3. Verify status
         if request.status != EvolutionStatus::Pending {
@@ -120,12 +123,12 @@ impl Evolution {
         // Note: We use the owner's address to track the history
         append_evolution(
             &env,
-            &request.owner, 
+            &request.owner,
             from_stage,
             to_stage,
             Symbol::new(&env, "admin_exe"),
         );
-        
+
         // 6. Emit event
         env.events().publish(
             (Symbol::new(&env, "evolution_executed"),),
@@ -134,7 +137,7 @@ impl Evolution {
     }
 
     // Step 4: Add public getter functions
-    
+
     /// Get full evolution history for an agent
     pub fn get_agent_evolution_history(env: Env, agent_id: Address) -> Vec<EvolutionRecord> {
         get_evolution_history(&env, &agent_id)
@@ -146,7 +149,11 @@ impl Evolution {
     }
 
     /// Get evolution record at specific index
-    pub fn get_agent_evolution_at(env: Env, agent_id: Address, index: u32) -> Option<EvolutionRecord> {
+    pub fn get_agent_evolution_at(
+        env: Env,
+        agent_id: Address,
+        index: u32,
+    ) -> Option<EvolutionRecord> {
         get_evolution_at_index(&env, &agent_id, index)
     }
 

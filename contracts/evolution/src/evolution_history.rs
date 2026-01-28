@@ -5,11 +5,11 @@ use soroban_sdk::{contracttype, Address, Env, Symbol, Vec};
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct EvolutionRecord {
-    pub timestamp: u64,      // When it happened
-    pub from_stage: u32,     // Old stage
-    pub to_stage: u32,       // New stage
-    pub agent_id: Address,   // Who evolved
-    pub trigger: Symbol,     // Why (manual, auto, quest)
+    pub timestamp: u64,    // When it happened
+    pub from_stage: u32,   // Old stage
+    pub to_stage: u32,     // New stage
+    pub agent_id: Address, // Who evolved
+    pub trigger: Symbol,   // Why (manual, auto, quest)
 }
 
 // 2. Define Storage Keys
@@ -27,7 +27,7 @@ pub fn append_evolution(
     trigger: Symbol,
 ) {
     let key = EvolutionDataKey::History(agent_id.clone());
-    
+
     // Retrieve existing history or start a new list
     let mut history: Vec<EvolutionRecord> = env
         .storage()
@@ -49,10 +49,10 @@ pub fn append_evolution(
 
     // Save back to storage (Persistent storage for long-term data)
     env.storage().persistent().set(&key, &history);
-    
+
     // Extend TTL to ensure history isn't lost (30 days worth of blocks)
     // Adjust the sequence number logic based on your specific network config if needed
-    env.storage().persistent().extend_ttl(&key, 17280, 518400); 
+    env.storage().persistent().extend_ttl(&key, 17280, 518400);
 }
 
 // 4. Getter Functions (Read-Only)
@@ -60,7 +60,10 @@ pub fn append_evolution(
 /// Get the full list of evolutions for an agent
 pub fn get_evolution_history(env: &Env, agent_id: &Address) -> Vec<EvolutionRecord> {
     let key = EvolutionDataKey::History(agent_id.clone());
-    env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env))
+    env.storage()
+        .persistent()
+        .get(&key)
+        .unwrap_or_else(|| Vec::new(env))
 }
 
 /// Get the total count of evolutions
@@ -82,7 +85,11 @@ pub fn get_latest_evolution(env: &Env, agent_id: &Address) -> Option<EvolutionRe
 }
 
 /// Get a specific evolution record by index
-pub fn get_evolution_at_index(env: &Env, agent_id: &Address, index: u32) -> Option<EvolutionRecord> {
+pub fn get_evolution_at_index(
+    env: &Env,
+    agent_id: &Address,
+    index: u32,
+) -> Option<EvolutionRecord> {
     let history = get_evolution_history(env, agent_id);
     history.get(index)
 }
